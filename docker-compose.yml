@@ -1,0 +1,108 @@
+version: '3.9'
+
+x-db-variables: &db-variables
+  POSTGRES_HOST: pgdb
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+
+services:
+  order:
+    container_name: order
+    hostname: order
+    build:
+      context: ./order
+    environment:
+      POSTGRES_DB: orders
+      <<: *db-variables
+    networks:
+      - local_net
+    restart: unless-stopped
+  
+  billing:
+    container_name: billing
+    hostname: billing
+    build:
+      context: ./billing
+    environment:
+      POSTGRES_DB: billing
+      <<: *db-variables
+    networks:
+      - local_net
+    restart: unless-stopped
+  
+  warehouse:
+    container_name: warehouse
+    hostname: warehouse
+    build:
+      context: ./warehouse
+    environment:
+      POSTGRES_DB: warehouse
+      <<: *db-variables
+    networks:
+      - local_net
+    restart: unless-stopped
+  
+  pgdb:
+    container_name: pgdb
+    hostname: pgdb
+    build:
+      context: ./db
+    environment: *db-variables
+    ports:
+      - 5432:5432
+    networks:
+      - local_net
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+  
+
+  ################
+  # Kafka services
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8080:8080
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka-1:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    networks:
+      - local_net
+
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper
+    ports:
+      - 2181:2181
+    networks:
+      - local_net
+
+  kafka-1:
+    container_name: kafka-1
+    image: wurstmeister/kafka
+    ports:
+      - 9095:9094
+    environment:
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://kafka-1:9092,OUTSIDE://kafka-1:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:9092,OUTSIDE://localhost:9095
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LOG_DIRS: /kafka/logs
+      KAFKA_BROKER_ID: 500
+      KAFKA_offsets_topic_replication_factor: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # - ./kafka_data/500:/kafka
+    networks:
+      - local_net
+
+networks:
+  local_net:
+
+volumes:
+  pg_data:
+    external: false

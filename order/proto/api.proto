@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package drompix.order;
+
+option go_package = ".;pb";
+
+message CreateOrderRequest {
+  int64 user_id = 1;
+  int64 item_id = 2;
+}
+message CreateOrderResponse {}
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+}
